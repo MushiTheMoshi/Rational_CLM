@@ -1,0 +1,153 @@
+#____________________________[ federate repo ]
+import os
+
+print "[+] Renaming REALM"
+try:
+  #CONFIG REALM                                                                                         
+  AdminTask.renameIdMgrRealm('[-name defaultWIMFileBasedRealm -newName DSTRealm]')
+except:
+  pass
+
+print "[+] Configuring DSTRealm"
+
+try:
+  #CONFIG REALM                                                                                         
+  AdminTask.configureAdminWIMUserRegistry('[-realmName DSTRealm -verifyRegistry false ]')
+except:
+  pass
+
+
+print "[+] Configuring Manage repositories"
+
+inf = ["Bluepages","bluepages.ibm.com","o=ibm.com","ePerson", "", ""], ["DSTLDAP","gbsp0180.bcsdc.lexington.ibm.com","o=dst.ibm.com", "kdPerson", "tdsadmin", "rational"]
+
+for i in range(0,len(inf)):
+
+  HOST   = inf[i][1]
+  ALIAS  = inf[i][0]
+  ENT    = inf[i][2]
+  OBJ    = inf[i][3]
+
+  print HOST,ALIAS,ENT,OBJ
+  print "[+] Configuring repo " + str(ALIAS)
+
+  #create repo 1
+  try:
+    AdminTask.createIdMgrLDAPRepository('[-default true -id '+ALIAS+' -adapterClassName com.ibm.ws.wim.adapter.ldap.LdapAdapter -ldapServerType IDS -sslConfiguration -certificateMapMode EXACT_DN -supportChangeLog none -certificateFilter -loginProperties mail]')
+  except:
+    pass
+
+  #Add member_attr 2
+  try:
+    AdminTask.addIdMgrLDAPGroupMemberAttr('[-id '+ALIAS+' -name uniqueMember -objectClass groupOfUniqueNames -scope direct]')
+  except:
+    pass
+
+  try:
+    AdminTask.deleteIdMgrLDAPGroupMemberAttr('[-id '+ALIAS+' -name member]')
+  except:
+    pass
+
+  try:
+    #Add_ID_MgrLDAP_server 3
+    AdminTask.addIdMgrLDAPServer('[-id '+ALIAS+' -host '+HOST+' -sslEnabled true -ldapServerType IDS -sslConfiguration -certificateMapMode  -certificateFilter -authentication simple -port 636]')
+  except:
+    pass
+
+  AdminTask.setAdminActiveSecuritySettings('-activeUserRegistry LDAPUserRegistry')
+
+  #ENTRY 4
+  try:
+    AdminTask.addIdMgrRepositoryBaseEntry('[-id '+ALIAS+' -name '+ENT+' -nameInRepository '+ENT+']')
+  except:
+    pass
+
+  AdminConfig.save()
+
+  #enable pool 5
+  AdminTask.updateIdMgrLDAPServer('[-id '+ALIAS+' -host '+HOST+' -connectionPool true]')
+
+  #Config obj,classes 6
+  AdminTask.updateIdMgrLDAPEntityType('[-id '+ALIAS+' -name PersonAccount -objectClasses -searchBases -searchFilter ]')
+  try:
+    AdminTask.updateIdMgrLDAPEntityType('[-id '+ALIAS+' -name PersonAccount -objectClasses '+ OBJ +' -searchBases ou='+ALIAS+','+ENT+' -searchFilter ]')
+    #AdminTask.updateIdMgrLDAPEntityType('[-id '+ALIAS+' -name PersonAccount -objectClasses '+ OBJ +' -searchBases -searchFilter]')
+  except:
+    pass
+  print "[+] setting up properties of " + ALIAS
+  AdminTask.updateIdMgrLDAPEntityType('[-id '+ALIAS+'  -name Group -objectClasses -searchBases -searchFilter ]')
+  AdminTask.updateIdMgrLDAPEntityType('[-id '+ALIAS+'  -name Group -objectClasses groupOfUniqueNames -searchBases -searchFilter ]')
+
+  #adding Repo to realm
+  print "[+] Add entry " + ALIAS + " to RealmBaseEntry"
+  AdminTask.addIdMgrRealmBaseEntry('[-name DSTRealm -baseEntry '+ENT+']')
+  AdminConfig.save()
+
+# #adding Repo to realm
+# print "[+] Add entry " + ALIAS + "to RealmBaseEntry"
+# 
+# AdminTask.addIdMgrRealmBaseEntry('[-name DSTRealm -baseEntry DSTLDAP]')
+# AdminTask.addIdMgrRealmBaseEntry('[-name DSTRealm -baseEntry Bluepages]')
+# AdminConfig.save()
+# 
+
+
+# print "[+] deleting default base entry"
+# try:
+#    AdminTask.deleteIdMgrRealmBaseEntry('[-name DSTRealm -baseEntry o=defaultWIMFileBasedRealm]')
+# except:
+#    pass
+ 
+AdminTask.configureSingleSignon(['-enable', 'true', '-domainName', 'o=dst.ibm.com', '-requiresSSL', 'true'])
+AdminConfig.save()
+#
+#SET LDAP BIND   
+# print "[+] setting up LDAP bind"
+# AdminTask.updateIdMgrLDAPBindInfo('[-id "DSTLDAP" -bindDN "cn=tdsadmin" -bindPassword rational]')
+# AdminConfig.save()
+# 
+
+# #CONF LDAP ENTITIES
+# print "[+] Setting LDAP entities"
+# AdminTask.updateIdMgrLDAPEntityType('[-id Bluepages -name PersonAccount -objectClasses ePerson -searchBases -searchFilter ]')
+# AdminTask.updateIdMgrLDAPEntityType('[-id DSTLDAP -name PersonAccount -objectClasses kdPerson -searchBases -searchFilter ]')
+# AdminConfig.save()
+# 
+#CONF WIM
+print "[+] Configuring WIM"
+AdminTask.configureAdminWIMUserRegistry('[-realmName DSTRealm -verifyRegistry false ]')
+AdminTask.validateAdminName('[-registryType WIMUserRegistry -adminUser  dstacces@us.ibm.com ]')
+AdminTask.configureAdminWIMUserRegistry('[ -autoGenerateServerId true -primaryAdminId dstacces@us.ibm.com -ignoreCase true -customProperties -verifyRegistry false ]')
+AdminTask.updateIdMgrRealm('[-name DSTRealm -allowOperationIfReposDown false]')
+
+
+#SETASCURRENT
+print "[+] Set as current"
+AdminTask.configureAdminWIMUserRegistry('[-verifyRegistry true ]') 
+AdminTask.setAdminActiveSecuritySettings('-activeUserRegistry WIMUserRegistry')
+AdminTask.setGlobalSecurity ('[-enabled true]')
+
+
+#___________[ Edit SOAP/SAS client to login as dstacces ]
+print "[+] editting soap/sas client"
+#GET_props
+soap = os.getenv('CLIENTSOAP').replace('-Dcom.ibm.SOAP.ConfigURL=file:', "")
+sas = os.getenv('STDINCLIENTSAS').replace('-Dcom.ibm.CORBA.ConfigURL=file:', "").replace("stdinclient","client")
+
+#main_edition
+for PRT,file in {"SOAP":soap, "CORBA":sas}.items():
+    rp = {'com.ibm.'+PRT+'.loginUserid=':'com.ibm.'+PRT+'.loginUserid=dstacces@us.ibm.com',
+          'com.ibm.'+PRT+'.loginPassword=':'com.ibm.'+PRT+'.loginPassword={xor}Pjw8OixrOywr' 
+         }
+    i_file = open(file).read()
+    o_file = open(file, "w")
+
+    for i in rp.keys():
+        i_file=i_file.replace(i, rp[i])
+
+    o_file.write(i_file)
+    o_file.close()
+
+
+
+AdminConfig.save()

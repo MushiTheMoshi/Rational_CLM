@@ -1,0 +1,49 @@
+#____________________________________[ Setup WAS  ]
+import sys,re
+
+#CLM_DIR as first argument
+CLM_DIR=str(sys.argv[0])
+
+#SSO
+AdminTask.configureSingleSignon(['-enable', 'true', '-domainName', 'dst.ibm.com', '-requiresSSL', 'true'])
+
+#custom property
+AdminConfig.create('Property',AdminConfig.list("SessionManager").split("\n")[1], '[[validationExpression ""] [name "InvalidateOnUnauthorizedSessionRequestException"] [description ""] [value "true"] [required "false"]]')
+
+#Threadpools
+pools=[i for i in AdminConfig.list('ThreadPool', AdminConfig.list("Server")).split("\n")]
+tr_pool={"Default": [40,250], "TCPChannel.DCS":[20,40], "WebContainer":[250,250]}
+
+for p,v in tr_pool.items():
+    min=v[0]
+    max=v[1]
+    dat=str([i for i in pools if re.search(p,i)][0])
+    try:
+       AdminConfig.modify(dat, '[[maximumSize "' + str(max) + '"] [name "' + p + '"] [minimumSize "' + str(min) + '"] [inactivityTimeout 5000] [description ""] [isGrowable "false"]]')
+       print(str(p) + " Reconfigured")
+    except Exception:
+       pass
+
+
+#create_JVM_main_definition
+AdminTask.setJVMProperties('[-nodeName '+ AdminControl.getNode() +' -serverName server1 -verboseModeClass false -verboseModeGarbageCollection false -verboseModeJNI false -initialHeapSize 8292 -maximumHeapSize 8292 -runHProf false -hprofArguments -debugMode false -debugArgs "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=7777" -executableJarFileName -genericJvmArguments "-Xgcpolicy:gencon -Xmx8g -Xms8g -Xmn1g -Xcompressedrefs -Xgc:preferredHeapBase=0x100000000 -XX:MaxDirectMemorySize=1G -Xdump -Xgc:classUnloadingKickoffThreshold=5000" -disableJIT false]')
+#$
+
+
+#create_JVM_custom properties
+
+prt={
+    "JAZZ_HOME" : "file://"+CLM_DIR+"/server/conf",
+    "startup_log4j.configuration" : "file://"+CLM_DIR+"/server/conf/startup_log4j.properties",
+    "java.awt.headless": "true",
+    "org.eclipse.emf.ecore.plugin.EcorePlugin.doNotLoadResourcesPlugin":"true",
+    "java.io.tmpdir": "/tmp"
+}
+
+for p,v in prt.items():
+    AdminConfig.create('Property', AdminConfig.list('JavaVirtualMachine'),'[[validationExpression ""] [name '+ p +'] [description ""] [value"'+ v +'"] [required "false"]]')
+
+#$
+
+AdminConfig.save()
+

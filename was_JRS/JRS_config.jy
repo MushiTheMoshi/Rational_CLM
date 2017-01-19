@@ -1,0 +1,82 @@
+import os,sys
+
+
+
+def jrs_deploy():
+
+    #___________________________________________[ installing war ]
+    #CLM_DIR=sys.argv[0] + "/server/webapps/"
+    node = AdminControl.getNode()
+    cell = AdminControl.getCell()
+    server = "server1"
+    appMgr = AdminControl.queryNames( 'name=ApplicationManager,*' )
+    prof = os.getcwd().split("/")[-1]
+    server_name = AdminControl.queryNames("WebSphere:type=Server,*").split("=")[1].split(",")[0]
+    node         = AdminControl.getNode()
+    profile      = os.getcwd()
+    app = "rs"
+
+    CLM_DIR = "/opt/IBM/CLM60/server/webapps/"
+
+    try:
+        print("\n[+] Installing "+app+".war")
+
+        attrs = ['-appname', app+".war", '-defaultbinding.virtual.host default_host -usedefaultbindings', '-node', node, '-server', server, '-contextroot',  "/"+app]
+        AdminApp.install(CLM_DIR + app + ".war", attrs)
+    except:
+        print("[!] "+app + ".war already exist")
+        pass
+
+    AdminConfig.save()
+
+    print("[+] stopping profile")
+    AdminControl.stopServer(server_name, node, 'immediate')
+
+
+
+
+
+#__________[ starting App ]
+#print("[+] starting app")
+#AdminApplication.startApplicationOnSingleServer("rs.war", node,server_name)
+
+
+
+##__________[ restarting profile ]
+#
+#print("[+] Restarting Profile")
+#
+##stopping
+#AdminControl.stopServer(server_name, node, 'immediate')
+##starting
+##os.system("su - wasadmin -c ' " + profile + "/bin/startServer.sh server1' ")
+##AdminControl.reconnect()
+#
+#AdminConfig.save()
+#
+
+
+def jrs_config():
+
+    #_____________________________________________[ configuring libs ]
+    print("[+] Configuring Resourses/Libs")
+
+    #_____________________________________________[ new lib ]
+    AdminConfig.create('Library', AdminConfig.getid('/Cell:' + AdminControl.getCell() + '/Node:' + AdminControl.getNode() + '/Server:server1/'), '[[nativePath ""] [name "JRS Shared Library"] [isolatedClassLoader true] [description "JRS Shared Library"] [classPath "/opt/IBM/CLM60/server/conf/rs/WAS_SharedLibrary"]]') 
+
+    #_____________________________________________[ refence lib]
+    AdminApp.edit('rs.war', '[ -MapSharedLibForMod [[ rs_war META-INF/application.xml "JRS Shared Library" ]]]' ) 
+
+    #____________________________________________[ starting the app ]
+    #appManager = AdminControl.queryNames("cell=" + AdminControl.getCell()  + ",node=" +  AdminControl.getNode() + ", type=ApplicationManager,process=Plants1,*")
+
+    AdminConfig.save()
+
+
+if sys.argv[0] == "config":
+    jrs_config()
+
+if sys.argv[0] == "deploy":
+    jrs_deploy()
+
+

@@ -1,0 +1,17 @@
+#___________________________________________[ CLM war group mapping ]
+
+import sys,os
+
+group = sys.argv[0]
+#prof = os.getcwd().split("/")[-1].lower()
+
+for prof in "jts","ccm","qm":
+
+	roles=["JazzAdmins", "JazzUsers", "JazzGuests",  "JazzProjectAdmins", "JazzDebug"]
+
+	for role in roles:
+		AdminApp.edit(prof + '.war', '[ -MapRolesToUsers [[ '+role+' AppDeploymentOption.No AppDeploymentOption.No "" '+group+' AppDeploymentOption.No "" group:DSTRealm/cn='+group+',ou=memberlist,ou=ibmgroups,o=ibm.com ]]]' )
+
+
+AdminConfig.save()
+

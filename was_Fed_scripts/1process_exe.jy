@@ -1,0 +1,7 @@
+try:
+   AdminConfig.modify(AdminConfig.list("ProcessExecution"), '[[runAsUser "wasadmin"] [runAsGroup "wasadmin"] [runInProcessGroup "0"] [processPriority "20"] [umask "022"]]')
+except:
+   pass
+
+AdminConfig.save()
+

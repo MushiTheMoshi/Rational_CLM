@@ -1,0 +1,17 @@
+#________________________________[ install certs ]
+try:
+   inf = {0:["Bluepages","bluepages.ibm.com"],1:["DSTLDAP","gbsp0180.bcsdc.lexington.ibm.com"]}
+   for i in inf.keys():
+      HOST = inf[i][1]
+      ALIAS = inf[i][0]
+      CMD = AdminTask.retrieveSignerFromPort('[-keyStoreName NodeDefaultTrustStore -keyStoreScope (cell):'+ AdminControl.getCell()  +':(node):' + AdminControl.getNode()  + ' -host '+ HOST +' -port 636 -certificateAlias '+ ALIAS +' -sslConfigName NodeDefaultSSLSettings -sslConfigScopeName (cell):' + AdminControl.getCell() + ':(node):' + AdminControl.getNode() +' ]')                                                                                                            
+   if AdminTask.retrieveSignerInfoFromPort('[-host '+ HOST +' -port 636 -sslConfigName NodeDefaultSSLSettings -sslConfigScopeName (cell):' + AdminControl.getCell() + ':(node):' + AdminControl.getNode()  + ' ]'):
+         try:
+            CMD
+         except Exception:
+            pass
+except:
+   pass
+
+AdminConfig.save()
+

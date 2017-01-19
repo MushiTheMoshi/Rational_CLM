@@ -1,0 +1,57 @@
+#_________________________________________________[ AUTOMATE DEPLOY CLM4-5 ]
+import os,sys
+
+#___________________________[ VARS ]
+CLM_DIR=sys.argv[0] + "/server/webapps/"
+
+node = AdminControl.getNode()
+cell = AdminControl.getCell()
+server = "server1"
+apps=[i.replace(".war", "") for i in os.listdir(CLM_DIR)]
+appMgr = AdminControl.queryNames( 'name=ApplicationManager,*' )
+prof = os.getcwd().split("/")[-1]
+
+#apps={ 'jts' : ['jts', 'clmhelp', 'admin'],
+#       'ccm' : ['ccm'], 
+#       'rm'  : ['rm', 'converter'],
+#       'qm'  : ['qm'] }
+
+#app = [i for i in apps.keys() if i.upper() == prof ]
+#apps = apps.get(app[0])
+
+#MAIN INSTALL
+for app in apps:
+
+    try:
+      attrs = ['-appname', app+".war", '-defaultbinding.virtual.host default_host -usedefaultbindings', '-node', node, '-server', server, '-contextroot',  "/"+app]
+      print("\n[+] Installing "+app+".war")
+      AdminApp.install(CLM_DIR + app + ".war", attrs)
+
+    except:
+      print("[!] "+app + ".war already exist")
+      pass
+
+
+
+#DELETING OLD DEFAULT APPS
+try:
+   #stop APPS & delete
+   AdminControl.invoke(appMgr, 'stopApplication', '[ivtApp]', '[java.lang.String]')
+   AdminControl.invoke(appMgr, 'stopApplication', '[query]', '[java.lang.String]') 
+   AdminApp.uninstall('ivtApp')
+   AdminApp.uninstall('query')
+except:
+   pass
+
+
+
+#turn on 
+#for app in apps:
+#    try:
+#        AdminApplication.startApplicationOnSingleServer(app+".war",AdminControl.getNode(),"server1")
+#    except:
+#       pass
+
+AdminConfig.save()
+
+
