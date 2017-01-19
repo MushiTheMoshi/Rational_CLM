@@ -1,0 +1,3 @@
+{ 
+  "run_list": ["role[db2_v105_clmv6_role]"]
+}

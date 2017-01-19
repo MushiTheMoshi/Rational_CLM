@@ -1,0 +1,16 @@
+#!/bin/bash
+
+find /opt/IBM/JazzTeamServer/server/conf/ -name "*.ini"|(
+   while read file; do
+      bak="$file.orig"
+      echo "Editing $file"
+      echo "Backup: $bak"
+      if [ ! -f "$bak" ]; then cp "$file" "$bak"; fi
+      temp="$bak.tmp"
+      echo "Adding Path"      
+      echo "url=file:" |sed -e 's/url=file:/url=file:\/opt\/JazzTeamServer\/server\/conf\//g' "$file" > "$temp" && cat "$temp" > "$file"
+      rm -f $temp
+   done
+
+)
+

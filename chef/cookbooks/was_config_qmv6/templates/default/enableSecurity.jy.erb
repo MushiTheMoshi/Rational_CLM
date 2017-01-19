@@ -1,0 +1,4 @@
+AdminTask.setGlobalSecurity ('[-enabled true]')
+securityConfigID = AdminConfig.getid("/Security:/")
+AdminConfig.modify(securityConfigID,[['appEnabled','true']])
+AdminConfig.save()

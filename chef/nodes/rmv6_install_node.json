@@ -1,0 +1,3 @@
+{
+  "run_list": ["role[rmv6_install_role]"]
+}

@@ -1,0 +1,60 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<agent-input>
+  <variables>
+    <variable name='sharedLocation' value='/opt/IBM/IBMIMShared'/>
+  </variables>
+  <server>
+    <repository location='/srv'/>
+  </server>
+  <profile id='IBM Collaborative Lifecycle Management' installLocation='/opt/IBM/CLM60'>
+    <data key='eclipseLocation' value='/opt/IBM/CLM60'/>
+    <data key='user.import.profile' value='false'/>
+    <data key='cic.selector.os' value='linux'/>
+    <data key='cic.selector.arch' value='x86_64'/>
+    <data key='cic.selector.ws' value='gtk'/>
+    <data key='user.com.ibm.team.install.prereq.timestamp' value='20151029-1838-06'/>
+    <data key='user.com.ibm.team.install.jfs.migration-options.server-shortcut-key-prefix' value='CLM60'/>
+    <data key='user.com.ibm.team.install.jfs.app.clmhelp.context-root' value='clmhelp'/>
+    <data key='user.com.ibm.team.install.jfs.app.rtc.context-root' value='ccm'/>
+    <data key='user.com.ibm.team.install.jfs.app.jazz.context-root' value='jts'/>
+    <data key='user.com.ibm.team.install.jfs.app.ldx.context-root' value='ldx'/>
+    <data key='user.com.ibm.team.install.jfs.app.rqm.context-root' value='qm'/>
+    <data key='user.com.ibm.team.install.jfs.app.rdm.context-root' value='rm'/>
+    <data key='user.com.ibm.team.install.jfs.appserver.noappserver.disable' value='false'/>
+    <data key='user.com.ibm.team.install.jfs.appserver.tomcat.disable' value='true'/>
+    <data key='user.com.ibm.team.install.jfs.appserver.liberty.disable' value='true'/>
+    <data key='user.JazzFoundationServer.NoAppServer.WebApps.InstallLocation' value='/opt/IBM/CLM60/server/webapps'/>
+    <data key='user.com.ibm.team.install.jfs.appserver.user-override' value='true'/>
+    <data key='user.com.ibm.team.install.jfs.sso.oidc.enable' value='false'/>
+    <data key='cic.selector.nl' value='en'/>
+  </profile>
+  <install modify='false'>
+    <!-- Change and Configuration Management 6.0 -->
+    <offering profile='IBM Collaborative Lifecycle Management' id='com.ibm.team.install.jfs.app.rtc' version='6.0.0.RTC-I20150519-1214-r60' features='jfs.base,db.derby,license,swg.tags,itlm,repotools,scripts,upgrade,server.conf,server.provision,tomcat.webapps,liberty.webapps,noappserver.webapps' installFixes='none'/>
+    <!-- Jazz Team Server 6.0 -->
+    <offering profile='IBM Collaborative Lifecycle Management' id='com.ibm.team.install.jfs.app.jts' version='6.0.0.RJF-I20150519-1056-r60-' features='jfs.base,jazz,clmhelp,rcl' installFixes='none'/>
+    <!-- Quality Management 6.0 -->
+    <offering profile='IBM Collaborative Lifecycle Management' id='com.ibm.team.install.jfs.app.rqm' version='6.0.0.RQM6_0_0-I20150519_1442' features='jfs.base,db.derby,license,repotools,scripts,upgrade,server.conf,server.provision,tomcat.webapps,liberty.webapps,noappserver.webapps,swg.tags,itlm' installFixes='none'/>
+    <!-- Requirements Management 6.0 -->
+    <offering profile='IBM Collaborative Lifecycle Management' id='com.ibm.team.install.jfs.app.rdm' version='6.0.0.RDNG6_0_0-I20150519_1236' features='jfs.base,db.derby,license,upgrade,server.conf,server.provision,tomcat.webapps,liberty.webapps,noappserver.webapps,swg.tags,itlm,repotools,scripts' installFixes='none'/>
+    <!-- Trial keys for Collaborative Lifecycle Management Products 6.0 -->
+    <offering profile='IBM Collaborative Lifecycle Management' id='com.ibm.team.install.jfs.app.product-clm' version='6.0.0.CALM60-I20150519-1808-r60' features='server.conf,server.provision,require.jts' installFixes='none'/>
+  </install>
+  <preference name='com.ibm.cic.common.core.preferences.eclipseCache' value='${sharedLocation}'/>
+  <preference name='com.ibm.cic.common.core.preferences.connectTimeout' value='30'/>
+  <preference name='com.ibm.cic.common.core.preferences.readTimeout' value='45'/>
+  <preference name='com.ibm.cic.common.core.preferences.downloadAutoRetryCount' value='0'/>
+  <preference name='offering.service.repositories.areUsed' value='true'/>
+  <preference name='com.ibm.cic.common.core.preferences.ssl.nonsecureMode' value='false'/>
+  <preference name='com.ibm.cic.common.core.preferences.http.disablePreemptiveAuthentication' value='false'/>
+  <preference name='http.ntlm.auth.kind' value='NTLM'/>
+  <preference name='http.ntlm.auth.enableIntegrated.win32' value='true'/>
+  <preference name='com.ibm.cic.common.core.preferences.preserveDownloadedArtifacts' value='true'/>
+  <preference name='com.ibm.cic.common.core.preferences.keepFetchedFiles' value='false'/>
+  <preference name='PassportAdvantageIsEnabled' value='false'/>
+  <preference name='com.ibm.cic.common.core.preferences.searchForUpdates' value='false'/>
+  <preference name='com.ibm.cic.agent.ui.displayInternalVersion' value='false'/>
+  <preference name='com.ibm.cic.common.sharedUI.showErrorLog' value='true'/>
+  <preference name='com.ibm.cic.common.sharedUI.showWarningLog' value='true'/>
+  <preference name='com.ibm.cic.common.sharedUI.showNoteLog' value='true'/>
+</agent-input>

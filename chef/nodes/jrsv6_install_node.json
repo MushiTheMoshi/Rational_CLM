@@ -1,0 +1,3 @@
+{
+  "run_list": ["role[jrsv6_install_role]"]
+}

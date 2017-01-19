@@ -1,0 +1,16 @@
+#!/bin/bash
+
+find /opt/IBM/JazzTeamServer/server/ -name "*.sh"| egrep 'server/repotools-jts.sh|server/repotools-ccm.sh|server/repotools-qm|server/repotools-rm'|(
+   while read file; do
+      bak="$file.orig"
+      echo "Editing $file"
+      echo "Backup: $bak"
+      if [ ! -f "$bak" ]; then cp "$file" "$bak"; fi
+      temp="$bak.tmp"
+      echo "Adding Path"      
+      echo "usr" |sed -e 's/usr/opt\/IBM\/WebSphere8\/AppServer\/java/g' "$file" > "$temp" && cat "$temp" > "$file"
+      rm -f $temp
+   done
+
+)
+

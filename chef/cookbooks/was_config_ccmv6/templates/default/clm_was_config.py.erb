@@ -1,0 +1,491 @@
+############################################################################
+# Licensed Materials - Property of IBM (c) Copyright IBM Corporation 2011. #
+# All Rights Reserved.                                                     #
+#                                                                          #
+# Pre-requisite: WAS should be installed                                   #
+# This script can be run prior to installing CLM                           #
+# This script does the following:                                          #
+# -> De-select the option 'Use Java 2 security to restrict application     # 
+#    access to local resources'                                            #
+# -> Select Enable application security check box                          #
+# -> Select Enable administrative security check box                       #
+# -> Select 'Use available authentication data when an unprotected URI is  #
+#    accessed' check box                                                   #
+# -> Sets the initial and max jvm heap sizes to 4096                       #
+# -> Sets the recommended JVM args.                                        #
+#    * For 64-bit:                                                         #
+#      o Solaris/MacOS (unofficial):                                       #
+#        -Xmx4g -Xms4g -Xmn512m                                            #
+#        -XX:MaxPermSize=768M -XX:ReservedCodeCacheSize=512M               # 
+#        -XX:CodeCacheMinimumFreeSpace=2M"                                 #
+#      o AIX:                                                              #
+#        -Xmx4g -Xms4g -Xmn512m -Xgcpolicy:gencon -Xnocompressedrefs       #
+#      o Other (e.g. Windows/Linux)                                        #
+#        -Xmx4g -Xms4g -Xmn512m -Xgcpolicy:gencon -Xcompressedrefs         #
+#        -Xgc:preferredHeapBase=0x100000000                                #     
+#    * For 32-bit (deprecated):                                            #     
+#      o -Xmx1200m                                                         #
+# -> Adds following jvm properties:                                        #
+#    * name: JAZZ_HOME value: path to config files                         #
+#    * name: java.awt.headless value: true                                 #
+#    * name: org.eclipse.emf.ecore.plugin.EcorePlugin.                     #
+#      doNotLoadResourcesPlugin value: true                                #
+#    * name: log4j.configuration value: path to startup_log4j.properties   #
+# -> Conditionally adds the following jvm properties (appropriate code     #
+#    needs to be uncommented)                                              #
+#    * name: SQLSERVER_JDBC_DRIVER_FILE value: <Absolute path to the JDBC  #
+#            driver>/sqljdbc4.jar (if connecting with JRE 6, else to       #
+#            <Absolute path to the JDBC driver>/sqljdbc.jar (if connecting #
+#            with JRE 5.                                                   #
+#            Note: The path to the JDBC driver must be an absolute path.   #
+#                  Do not use URL path (file:///)                          #
+#      Uncomment code:                                                     #
+#      createJVMCustomProperty(jvm, "SQLSERVER_JDBC_DRIVER_FILE",          #
+#                              sqlDriverPath, "")                          #
+#    * name: ORACLE_JDBC_DRIVER_FILE value: <Absolute path to the JDBC     #
+#            driver>/ojdbc5.jar.                                           #
+#            Note: The path to the JDBC driver must be an absolute path.   #
+#                  Do not use URL path (file:///)                          #
+#      Uncomment code:                                                     #
+#      createJVMCustomProperty(jvm, "ORACLE_JDBC_DRIVER_FILE",             #
+#                              oracleDriverPath, "")                       #
+#    * name: DB2Z_JDBC value: /@db2PathPrefix@/db2910_jdbc/classes or      #
+#            /@db2PathPrefix@/db2a10/jdbc/classes                          #
+#            Note: Replace @db2PathPrefix@ with the path to the DB2 V9 or  #
+#                  V10 JDBC license and JDBC jar files on your system.     #
+#                  These files are named db2jcc_license_cisuz.jar and      #
+#                  db2jcc.jar and are located by default at /usr/lpp/ plus #
+#                  the version-specific path.                              #
+#      Uncomment code:                                                     #
+#      os_name = java.lang.System.getProperty('os.name')                   #
+#      is_zOS = os_name.find('z/OS')                                       #
+#      if (is_zOS != -1):                                                  #
+#          createJVMCustomProperty(jvm, "DB2Z_JDBC", db2DriverPath, "")    #
+#                                                                          #
+# -> In a clustered environment:                                           #
+#    * Make the following ORB (Object Request Broker) settings             #
+#      o Request timeout = 30                                              #
+#      o Connection cache maximum = 1024                                   #
+#      o Connection cache minimum = 1024                                   #
+#      o Locate request timeout = 30                                       #
+#      o Pass by reference (noLocalCopies) = true                          #
+#    * Add the following ORB custom properties                             #
+#      o name: com.ibm.CORBA.ConnectionMultiplicity value: 1               #
+#      o name: com.ibm.CORBA.ConnectTimeout value: 10                      #
+#      o name: com.ibm.CORBA.FragmentSize value: 0                         #
+#      o name: com.ibm.CORBA.FragmentTimeout value: 30                     #
+#      o name: com.ibm.CORBA.NoLocalInterceptors value: true               #
+#      o name: com.ibm.CORBA.ServerSocketQueueDepth value: 1024            #
+#    * Make the following Thread Pool Settings                             #
+#      o Minimum Size = 256                                                #
+#      o Maximum Size = 256                                                #
+#      o Allow thread allocation beyond maximum thread size = false        #
+#                                                                          #                                       
+# Usage instructions are based on WebSphere® Application Server version 7  #
+#                                                                          #
+# Usage (Win):                                                             #
+#    wsadmin -language jython -user <username> -password <password>        #
+#    -f <path to clm_was_config.py e.g.                                    #
+#    C:/JazzTeamServer/server/was/clm_was_config.py>                       #
+#    <path to conf directory e.g.                                          #
+#    C:/JazzTeamServer/server/conf>                                        #
+# Usage (Linux):                                                           #
+#    ./wsadmin.sh -language jython -user <username> -password <password>   #
+#    -f <path to clm_was_config.py e.g.                                    #
+#    /opt/IBM/JazzTeamServer/server/was/clm_was_config.py>                 # 
+#    <path to conf directory e.g.                                          #
+#    /opt/IBM/JazzTeamServer/server/conf >                                 #
+############################################################################
+
+############################################################
+# Function:  	createORBCustomProperty                    #
+# Description:	This function either modifies the value of #
+#               an existing ORB custom property OR creates #
+#               it if it does not already exist            #             
+############################################################
+
+def createORBCustomProperty(orb, propName, propValue, propDesc):
+	# Get list of existing ORB properties
+	propList = AdminConfig.showAttribute(orb, "properties")
+	propList = propList [1:len(propList)-1].split(" ")	
+
+	exists = 0
+	if (propList != ['']):
+		for item in propList:
+			itemName = AdminConfig.showAttribute(item, "name")
+			if (itemName == propName):
+				exists = 1
+				try:
+					_excp_ = 0
+					result = AdminConfig.modify(item, [["value", propValue ], ["description", propDesc]])
+					print "Modified "+propName+" ORB custom property"
+				except:
+					_type_, _value_, _tbck_ = sys.exc_info()
+					result = `_value_`
+					_excp_ = 1
+				#endTry 
+				if (_excp_ ):
+					print "Caught Exception modifying "+propName+" ORB custom property"
+					print result
+					return
+				#endIf 
+				break
+			#endIf
+		#endFor
+	#endIf
+	if (not exists):
+		try:
+			_excp_ = 0
+			result = AdminConfig.create('Property', orb, '[[validationExpression ""] [name ' + propName + '] [description ""] [value ' + propValue + '] [required "false"]]')
+			print "Created "+propName+" ORB custom property"
+		except:
+			_type_, _value_, _tbck_ = sys.exc_info()
+			result = `_value_`
+			_excp_ = 1
+		#endTry 
+		if (_excp_ ):
+			print "Caught Exception creating "+propName+" ORB property"
+			print result
+			return
+		#endIf 
+	#endIf 
+#endDef
+
+############################################################
+# Function:  	createJVMCustomProperty                    #
+# Description:	This function either modifies the value of #
+#               an existing JVM custom property OR creates #
+#               it if it does not already exist            #             
+############################################################
+
+def createJVMCustomProperty(jvm, propName, propValue, propDesc):
+	# Get list of existing JVM properties
+	propList = AdminConfig.showAttribute(jvm, "systemProperties")
+	propList = propList [1:len(propList)-1].split(" ")	
+
+	exists = 0
+	if (propList != ['']):
+		for item in propList:
+			itemName = AdminConfig.showAttribute(item, "name")
+			if (itemName == propName):
+				exists = 1
+				try:
+					_excp_ = 0
+					result = AdminConfig.modify(item, [["value", propValue ], ["description", propDesc]])
+					print "Modified "+propName+" JVM custom property"
+				except:
+					_type_, _value_, _tbck_ = sys.exc_info()
+					result = `_value_`
+					_excp_ = 1
+				#endTry 
+				if (_excp_ ):
+					print "Caught Exception modifying "+propName+" JVM custom property"
+					print result
+					return
+				#endIf 
+				break
+			#endIf
+		#endFor
+	#endIf
+	if (not exists):
+		try:
+			_excp_ = 0
+			result = AdminConfig.create('Property', jvm, '[[validationExpression ""] [name ' + propName + '] [description ""] [value ' + propValue + '] [required "false"]]')
+			print "Created "+propName+" JVM custom property"
+		except:
+			_type_, _value_, _tbck_ = sys.exc_info()
+			result = `_value_`
+			_excp_ = 1
+		#endTry 
+		if (_excp_ ):
+			print "Caught Exception creating "+propName+" JVM property"
+			print result
+			return
+		#endIf 
+	#endIf 
+#endDef
+
+#########################################################
+# De-select the option 'Use Java 2 security to restrict #
+# application access to local resources'                #
+#########################################################
+try:
+	_excp_ = 0
+	result = AdminTask.setAdminActiveSecuritySettings('-enforceJava2Security false')
+	print "Disabled Java2 Security"
+except:
+	_type_, _value_, _tbck_ = sys.exc_info()
+	result = `_value_`
+	_excp_ = 1
+#endTry 
+if (_excp_ ):
+	print "Caught Exception while disabling Java 2 Security"
+	print result
+#endIf
+
+#########################################################
+# Select Enable application security check box          #
+#########################################################
+try:
+	_excp_ = 0
+	result = AdminTask.setAdminActiveSecuritySettings('-appSecurityEnabled true')
+	print "Enabled Application Security"
+except:
+	_type_, _value_, _tbck_ = sys.exc_info()
+	result = `_value_`
+	_excp_ = 1
+#endTry 
+if (_excp_ ):
+	print "Caught Exception while enabling Application Security"
+	print result
+#endIf
+
+#########################################################
+# Select Enable administrative security check box       #
+#########################################################
+try:
+	_excp_ = 0
+	result = AdminTask.setAdminActiveSecuritySettings('-enableGlobalSecurity true')
+	print "Enabled Administrative Security"
+except:
+	_type_, _value_, _tbck_ = sys.exc_info()
+	result = `_value_`
+	_excp_ = 1
+#endTry 
+if (_excp_ ):
+	print "Caught Exception while enabling Administrative Security"
+	print result
+#endIf
+
+#########################################################
+# Select 'Use available authentication data when an     #
+# unprotected URI is accessed' check box                #
+#########################################################
+try:
+	_excp_ = 0
+	webAuth=AdminConfig.getid('/Security:/DescriptiveProperty:"com.ibm.wsspi.security.web.webAuthReq"')
+	result = AdminConfig.modify(webAuth, [['value', 'persisting']])
+	print "Enabled Unprotected URI" 
+except:
+	_type_, _value_, _tbck_ = sys.exc_info()
+	result = `_value_`
+	_excp_ = 1
+#endTry 
+if (_excp_ ):
+	print "Caught Exception while enabling Unprotected URI"
+	print result
+#endIf
+
+#########################################################
+# Java Virtual Machine configurations                   #
+#########################################################
+servers = AdminTask.listServers('[-serverType APPLICATION_SERVER ]')
+if (servers != ['']):
+	servers = servers [0:len(servers)].split(lineSeparator)
+	for server in servers:
+		print "Setting configuration for Application Server " + AdminConfig.showAttribute(server, "name")
+		jvm = AdminConfig.list('JavaVirtualMachine', server)
+		
+		try:
+			_excp_ = 0
+			result = AdminConfig.modify(jvm, [['initialHeapSize', '4096'],['maximumHeapSize', '4096']])
+			print "Set initial and max heap size to 4096"
+		except:
+			_type_, _value_, _tbck_ = sys.exc_info()
+			result = `_value_`
+			_excp_ = 1
+		#endTry 
+		if (_excp_ ):
+			print "Error modifying JVM heap size for Appserver "+AdminConfig.showAttribute(server, "name")
+			print "Error = "+result
+		#endIf 
+		
+		#########################################################
+		# Set recommended JVM args                              #
+		#########################################################
+		try:
+			_excp_ = 0
+			os_arch = java.lang.System.getProperty('os.arch')
+			os_name = java.lang.System.getProperty('os.name')
+			is_64 = os_arch.find('64')
+			is_Solaris = os_name.find('SunOS')
+			is_MacOS = os_name.find('Darwin')
+			is_AIX = os_name.find('AIX')
+			if (is_64 != -1):
+				if ((is_Solaris != -1) or (is_MacOS != -1)):
+					result = AdminConfig.modify(jvm, [['genericJvmArguments', '-Xmx4g -Xms4g -Xmn512m -XX:MaxPermSize=768M -XX:ReservedCodeCacheSize=512M -XX:CodeCacheMinimumFreeSpace=2M']])
+					print "Set JVM args -Xmx4g -Xms4g -Xmn512m -XX:MaxPermSize=768M -XX:ReservedCodeCacheSize=512M -XX:CodeCacheMinimumFreeSpace=2M"
+				elif (is_AIX != -1):
+					result = AdminConfig.modify(jvm, [['genericJvmArguments', '-Xmx4g -Xms4g -Xmn512m -Xgcpolicy:gencon -Xnocompressedrefs']])
+					print "Set JVM args -Xmx4g -Xms4g -Xmn512m -Xgcpolicy:gencon -Xnocompressedrefs"
+				else:
+					result = AdminConfig.modify(jvm, [['genericJvmArguments', '-Xmx4g -Xms4g -Xmn512m -Xgcpolicy:gencon -Xcompressedrefs -Xgc:preferredHeapBase=0x100000000']])
+					print "Set JVM args -Xmx4g -Xms4g -Xmn512m -Xgcpolicy:gencon -Xcompressedrefs -Xgc:preferredHeapBase=0x100000000"
+				#endIf
+			else:
+				result = AdminConfig.modify(jvm, [['genericJvmArguments', '-Xmx1200m']])
+				print "Set JVM args -Xmx1200m"
+			#endIf
+		except:
+			_type_, _value_, _tbck_ = sys.exc_info()
+			result = `_value_`
+			_excp_ = 1
+		#endTry 
+		if (_excp_ ):
+			print "Error setting JVM args"
+			print "Error = "+result
+		#endIf 
+		
+		#########################################################
+		# Create necessary JVM properties                       #
+		#########################################################
+		
+		# Get the path to the conf folder where Jazz Team Server is 
+		# installed from command-line
+		appcontextconfPath = "file:///"+ sys.argv[2]
+		
+		#########################################################
+		# Add JAZZ_HOME custom property - this is a system      #
+		# property that specifies where to find certain         #
+		# configuration files.                                  #
+		######################################################### 
+		createJVMCustomProperty(jvm, "JAZZ_HOME", appcontextconfPath, "")
+		
+		# Define more custom properties
+		createJVMCustomProperty(jvm, "java.awt.headless", "true", "")
+		createJVMCustomProperty(jvm, "org.eclipse.emf.ecore.plugin.EcorePlugin.doNotLoadResourcesPlugin", "true", "")
+		
+		#########################################################
+		# The settings that the startup_log4j.properties file   #
+		# contains are used at the early stages in the startup  # 
+		# process to pass messages to the WebSphere Application #
+		# Server SystemOut.log file. After the early stages,    #
+		# each Jazz application switches to using the           #
+		# application specific settings from the                #
+		# JazzInstallDir/server/conf/<app context>              #
+		# /log4j.properties file                                #
+		#########################################################
+		createJVMCustomProperty(jvm, "log4j.configuration", appcontextconfPath +"/startup_log4j.properties", "")
+		
+		#########################################################
+		# If you are connecting to a SQL Server database, create# 
+		# the property SQLSERVER_JDBC_DRIVER_FILE. Set the Value#
+		# to <Absolute path to the JDBC driver>/sqljdbc4.jar (if#
+		# connecting with JRE 6, else to <Absolute path to the  #
+		# JDBC driver>/sqljdbc.jar (if connecting with JRE 5.   #
+		# Note: The path to the JDBC driver must be an absolute #
+		# path. Do not use URL path (file:///).                 #
+		#########################################################
+		#createJVMCustomProperty(jvm, "SQLSERVER_JDBC_DRIVER_FILE", sqlDriverPath, "")
+		
+		#########################################################
+		# If you are connecting to an Oracle database, create   #
+		# the property - ORACLE_JDBC_DRIVER_FILE and set the    #
+		# Value to <Absolute path to the JDBC driver>/ojdbc5.jar#
+		# Note: The path to the JDBC driver must be an absolute #
+		# path. Do not use URL path (file:///).                 #
+		#########################################################
+		#createJVMCustomProperty(jvm, "ORACLE_JDBC_DRIVER_FILE", oracleDriverPath, "")
+		
+		#########################################################
+		# On Z/OS if you are connecting to a DB2 database,      #
+		# create the property - DB2Z_JDBC and set the value to  #
+		# /@db2PathPrefix@/db2910_jdbc/classes or               #
+		# /@db2PathPrefix@/db2a10/jdbc/classes                  #
+		# Note: Replace @db2PathPrefix@ with the path to the    #
+		# DB2 V9 or V10 JDBC license and JDBC jar files on your #
+		# system. These files are named                         #
+		# db2jcc_license_cisuz.jar and db2jcc.jar and are       #
+		# located by default at /usr/lpp/ plus the              #
+		# version-specific path                                 #
+		#########################################################
+		#os_name = java.lang.System.getProperty('os.name')
+		#is_zOS = os_name.find('z/OS')
+		#if (is_zOS != -1):
+			#createJVMCustomProperty(jvm, "DB2Z_JDBC", db2DriverPath, "")
+		 
+		#########################################################
+		# Do the following only for cluster environment         #
+		#########################################################
+		isCluster = AdminConfig.list( 'ServerCluster' ).splitlines()
+		if len( isCluster ) > 0 :
+			#########################################################
+			# Create necessary ORB custom properties                #
+			#########################################################
+			orb = AdminConfig.list('ObjectRequestBroker', server)
+			createORBCustomProperty(orb, "com.ibm.CORBA.ConnectionMultiplicity", "1", "")
+			createORBCustomProperty(orb, "com.ibm.CORBA.ConnectTimeout", "10", "")
+			createORBCustomProperty(orb, "com.ibm.CORBA.FragmentSize", "0", "")
+			createORBCustomProperty(orb, "com.ibm.CORBA.FragmentTimeout", "30", "")
+			createORBCustomProperty(orb, "com.ibm.CORBA.NoLocalInterceptors", "true", "")
+			createORBCustomProperty(orb, "com.ibm.CORBA.ServerSocketQueueDepth", "1024", "")
+			
+			#########################################################
+			# ORB Settings                                          #
+			#########################################################
+			try:
+				_excp_ = 0
+				AdminConfig.modify(orb, '[[requestTimeout "30"][connectionCacheMaximum "1024"][connectionCacheMinimum "1024"][locateRequestTimeout "30"][noLocalCopies "true"]]') 
+				print "Making ORB Settings: "
+				print "Request timeout = 30"
+				print "Connection cache maximum = 1024"
+				print "Connection cache minimum = 1024"
+				print "Locate request timeout = 30"
+				print "Pass by reference (noLocalCopies) = true"
+			except:
+				_type_, _value_, _tbck_ = sys.exc_info()
+				result = `_value_`
+				_excp_ = 1
+			#endTry 
+			if (_excp_ ):
+				print "Error making ORB Settings - Request timeout, Connection cache maximum, Connection cache minimum, Locate request timeout, Pass by reference (noLocalCopies)"
+				print "Error = "+result
+			#endIf
+			
+			#########################################################
+			# Thread Pool Settings                                  #
+			#########################################################
+			threadPool = AdminConfig.list('ThreadPool', orb)
+			try:
+				_excp_ = 0
+				AdminConfig.modify(threadPool, '[[maximumSize "256"][minimumSize "256"][isGrowable "false"]]')
+				print "Making Thread Pool Settings: "
+				print "Minimum Size = 256"
+				print "Maximum Size = 256"
+				print "Allow thread allocation beyond maximum thread size (isGrowable) = false"
+			except:
+				_type_, _value_, _tbck_ = sys.exc_info()
+				result = `_value_`
+				_excp_ = 1
+			#endTry 
+			if (_excp_ ):
+				print "Error making Thread Pool Setting - Minimum Size, Maximum Size, Allow thread allocation beyond maximum thread size (isGrowable)"
+				print "Error = "+result
+			#endIf
+		#endIf  		
+	#endFor
+#endIf
+
+#___________[ Edit SOAP/SAS client to login as dstacces ]
+#GET_props
+soap = os.getenv('CLIENTSOAP').replace('-Dcom.ibm.SOAP.ConfigURL=file:', "")
+sas = os.getenv('STDINCLIENTSAS').replace('-Dcom.ibm.CORBA.ConfigURL=file:', "").replace("stdinclient","client")
+
+#main_edition
+for PRT,file in {"SOAP":soap, "CORBA":sas}.items():
+    rp = {'com.ibm.'+PRT+'.loginUserid=':'com.ibm.'+PRT+'.loginUserid=dstacces@us.ibm.com',
+          'com.ibm.'+PRT+'.loginPassword=':'com.ibm.'+PRT+'.loginPassword={xor}Pjw8OixrOywr'
+         }
+    i_file = open(file).read()
+    o_file = open(file, "w")
+
+    for i in rp.keys():
+        i_file=i_file.replace(i, rp[i])
+
+    o_file.write(i_file)
+    o_file.close()
+
+
+
+# Save to master configuration
+AdminConfig.save()

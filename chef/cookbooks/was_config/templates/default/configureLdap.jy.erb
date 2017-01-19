@@ -1,0 +1,14 @@
+type = sys.argv[0]
+ldap_host = sys.argv[1]
+ldap_port = sys.argv[2]
+ldap_base_dn = sys.argv[3]
+ldap_admin = sys.argv[4]
+user_filter = sys.argv[5]
+group_filter = sys.argv[6]
+user_id_map = sys.argv[7]
+group_id_map = sys.argv[8]
+group_member = sys.argv[9]
+
+AdminTask.configureAdminLDAPUserRegistry('[-ldapHost ' + ldap_host + ' -ldapPort ' + ldap_port +' -ldapServerType ' + type + ' -baseDN ' + ldap_base_dn +' -searchTimeout 120 -reuseConnection true -sslEnabled false -sslConfig -autoGenerateServerId true -primaryAdminId ' + ldap_admin + ' -userFilter '+ user_filter +' -groupFilter '+ group_filter +' -userIdMap '+ user_id_map +' -groupIdMap '+ group_id_map +' -groupMemberIdMap '+ group_member +' -certificateMapMode EXACT_DN -ignoreCase true -customProperties -verifyRegistry false ]')
+AdminTask.setAdminActiveSecuritySettings('-activeUserRegistry LDAPUserRegistry')
+AdminConfig.save()

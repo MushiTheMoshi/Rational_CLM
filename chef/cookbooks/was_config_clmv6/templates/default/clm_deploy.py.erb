@@ -1,0 +1,65 @@
+############################################################################
+# Licensed Materials - Property of IBM (c) Copyright IBM Corporation 2011. #
+# All Rights Reserved.                                                     #
+#                                                                          #
+# Pre-requisite: WAS and CLM should be installed                           #
+# This script installs all CLM apps to a single WAS server                 #
+#                                                                          #
+# Usage (Win):                                                             #
+#    wsadmin -language jython -user <username> -password <password>        # 
+#    -f <path to clm_deploy.py e.g.                                        #
+#    C:/JazzTeamServer/server/was/clm_deploy.py>                           #
+#    <nodename> <servername>                                               #
+#    <path to war files e.g.                                               #
+#    C:/JazzTeamServer/server/webapps/>                                    #
+# Usage (Linux):                                                           #
+#    ./wsadmin.sh -language jython -user <username> -password <password>   #
+#    -f <path to clm_deploy.py e.g.                                        #
+#    /opt/IBM/JazzTeamServer/server/was/clm_deploy.py>                     #
+#    <nodename> <servername>                                               #
+#    <path to war files e.g.                                               #
+#    /opt/IBM/JazzTeamServer/server/webapps/>                              #
+############################################################################
+
+# Get the node from commandline
+node = AdminControl.getNode()
+
+# Get the server name from commandline
+server = ("server1")
+# Get the location of the war files
+war_location = "/opt/IBM/JazzTeamServer/server/webapps/"
+
+#######################
+# deploy all the apps #
+#######################
+
+try:
+	_excp_ = 0
+	os_name = java.lang.System.getProperty('os.name')
+	is_AIX = os_name.find('AIX')
+	# list of all the CLM apps - converter is not applicable on AIX
+	if (is_AIX != -1):
+		apps=["jts","admin","clmhelp","qm","ccm","rm"]
+	else:
+		apps=["jts","admin","clmhelp","qm","ccm","rm","converter"]
+	
+	for app in apps:
+		attrs = ['-appname', app+".war", '-defaultbinding.virtual.host default_host -usedefaultbindings', '-node', node, '-server', server, '-contextroot',  "/"+app]
+		print "Installing "+app
+		error = AdminApp.install(war_location + app + ".war", attrs)
+		AdminConfig.save()
+	#endFor
+	print "The installed applications may be started from the Integrated Solutions Console in WebSphere."
+except:
+	_type_, _value_, _tbck_ = sys.exc_info()
+	error = `_value_`
+	_excp_ = 1
+#endTry 
+if (_excp_ ):
+	print "Error Installing Application "
+	print "Error Message = "+error
+#endIf
+
+# Example of how to set role/mapping for jts.war
+# AdminApp.edit('jts.war', '[-MapRolesToUsers [["JazzAdmins" No No "" admins]["JazzDWAdmins" No No "" admins]["JazzUsers" No No "" users]["JazzGuests" No No "" users]["JazzProjectAdmins" No No "" admins]]]')
+# AdminConfig.save() 

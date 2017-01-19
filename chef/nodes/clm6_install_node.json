@@ -1,0 +1,3 @@
+{
+  "run_list": ["role[clm6_install_role]"]
+}

@@ -1,0 +1,3 @@
+{
+  "run_list": ["role[qmv6_install_role]"]
+}

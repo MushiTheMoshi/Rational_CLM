@@ -1,0 +1,83 @@
+*-----------------------------------------------------
+* Generated response file used by the DB2 Setup wizard
+* generation time: 9/2/13 6:01 PM
+*-----------------------------------------------------
+*  Product Installation 
+LIC_AGREEMENT       = ACCEPT
+PROD       = DB2_SERVER_EDITION
+FILE       = /opt/IBM/DB2/v10.5
+INSTALL_TYPE       = TYPICAL
+*-----------------------------------------------
+*  Das properties 
+*-----------------------------------------------
+DAS_CONTACT_LIST       = LOCAL
+*  DAS user
+DAS_USERNAME       = dasusr1
+DAS_GROUP_NAME       = dasadm1
+DAS_HOME_DIRECTORY       = /home/dasusr1
+DAS_PASSWORD       = dst4you
+* ----------------------------------------------
+*  Instance properties           
+* ----------------------------------------------
+INSTANCE       = inst1
+inst1.TYPE       = ese
+*  Instance-owning user
+inst1.NAME       = db2inst1
+inst1.GROUP_NAME       = db2iadm1
+inst1.HOME_DIRECTORY       = /home/db2inst1
+inst1.PASSWORD       = dst4you
+inst1.AUTOSTART       = YES
+inst1.SVCENAME       = db2c_db2inst1
+inst1.PORT_NUMBER       = 50000
+inst1.FCM_PORT_NUMBER       = 60000
+inst1.MAX_LOGICAL_NODES       = 4
+inst1.CONFIGURE_TEXT_SEARCH       = NO
+*  Fenced user
+inst1.FENCED_USERNAME       = db2fenc1
+inst1.FENCED_GROUP_NAME       = db2fadm1
+inst1.FENCED_HOME_DIRECTORY       = /home/db2fenc1
+inst1.FENCED_PASSWORD       = dst4you
+*-----------------------------------------------
+*  Installed Languages 
+*-----------------------------------------------
+LANG       = EN
+DB2COMM = TCPIP
+
+** Database Creation Settings:
+DATABASE = databas1
+databas1.DATABASE_NAME = JTS01
+databas1.INSTANCE = inst1
+databas1.LOCATION = LOCAL
+
+DATABASE = databas2
+databas2.DATABASE_NAME = CCM01
+databas2.INSTANCE = inst1
+databas2.LOCATION = LOCAL
+
+DATABASE = databas3
+databas3.DATABASE_NAME = RM01
+databas3.INSTANCE = inst1
+databas3.LOCATION = LOCAL
+
+DATABASE = databas4
+databas4.DATABASE_NAME = QM01
+databas4.INSTANCE = inst1
+databas4.LOCATION = LOCAL
+
+DATABASE = databas5
+databas5.DATABASE_NAME = DW01
+databas5.INSTANCE = inst1
+databas5.LOCATION = LOCAL
+
+DATABASE = databas6
+databas5.DATABASE_NAME = LQE
+databas5.INSTANCE = inst1
+databas5.LOCATION = LOCAL
+
+DATABASE = databas7
+databas5.DATABASE_NAME = LDX
+databas5.INSTANCE = inst1
+databas5.LOCATION = LOCAL
+
+
+
