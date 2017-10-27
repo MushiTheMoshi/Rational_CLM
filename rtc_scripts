@@ -1,0 +1,98 @@
+#_____________________________________________[ pom files operations ]
+#
+function update_pom($file){
+	
+	$dir_local = "C:\Users\jg43929\AppData\Local\Temp\pom"
+	
+	#if dir does not exists , creates it
+	if ( !(Test-Path -Path $dir_local) ){
+	   New-Item -ItemType directory -Path $dir_local
+	}
+	
+	Set-location -Path "C:\Program Files\IBM\SDP2\scmtools\eclipse"
+
+	#_________[get the pom dir]
+	$pom_dirs = (
+	Get-ChildItem -Path .\build.config -Recurse -Directory | % {$_.Fullname} |where {$_ -match ".*jar"}
+	)
+	
+	#________[get the pom file]
+	$file_1= $file
+	$file  = $file -replace "([sS]015|17011[43]|pom|xml|mx|cloudrbcasa|int|\bcom\b|citi|component)" | % {$_ -replace "(^(\.)+|(\.)+$)"}
+	$regex = $file -replace "\." , ".*"
+	#create the regex from the $file var
+	#@($file.split(".")) |% { $regex += Write-Output "$_.*" } 
+		
+	foreach ($dir in $pom_dirs) {
+	
+		if ($dir -match "$regex") { $pom_dir = $dir }		
+	}
+
+	$pom_file=$pom_dir + "\pom.xml"	
+
+	#________[connection]
+	Invoke-command {.\lscm.bat login -r https://rtc.nam.nsroot.net/rbcasa1/ -u jg43929 -P 123QWEasd -n local}
+	
+	Invoke-command {.\lscm.bat accept -v}
+	Invoke-command {.\lscm.bat load -r local --all S015_cli --force}
+
+	#________[update new file]
+	Get-Content "$dir_local\$file_1" | out-file -filepath $pom_file
+	
+	#________[checkin and deliver]
+	Invoke-command {.\lscm.bat checkin $pom_file}
+	
+	$id = Invoke-command {.\lscm.bat show status}
+	$id = $id | Select-String "\-\*"
+	$id = $id -split "\)"
+	$id = $id[0].replace('(', '').Trim()
+
+	Invoke-command {.\lscm.bat set changeset $id --comment "new pom" }
+	Invoke-command {.\lscm.bat set changeset $id --complete}
+	Invoke-command {.\lscm.bat deliver}
+
+}
+
+
+
+function fetch_pom($file){
+
+	$dir = "C:\Users\jg43929\AppData\Local\Temp\pom"
+	
+	#if dir does not exists , creates it
+	if ( !(Test-Path -Path $dir) ){
+	   New-Item -ItemType directory -Path $dir
+	}
+
+	Set-location -Path "C:\Program Files\IBM\SDP2\scmtools\eclipse"
+
+	#_________[get the pom dir]
+	$pom_dirs = (
+		Get-ChildItem -Path .\build.config -Recurse -Directory | % {$_.Fullname} |where {$_ -match ".*jar"}
+	)
+
+	#________[get the pom file]
+	$file_1= $file
+	$file  = $file -replace "([sS]015|17011[43]|pom|xml|mx|cloudrbcasa|int|\bcom\b|citi|component)" | % {$_ -replace "(^(\.)+|(\.)+$)"}
+	$regex = $file -replace "\." , ".*"
+	#create the regex from the $file var
+	#
+	#@($file.split(".")) |% { $regex += Write-Output "$_.*" } 
+
+	foreach ($dir in $pom_dirs) {
+	
+		if ($dir -match "$regex") { $pom_dir = $dir }		
+	}
+
+	$pom_file=$pom_dir + "\pom.xml"	
+	
+	Copy-Item -Path $pom_file -Destination $env:tmp\pom\update\$file
+	
+}
+  
+
+
+
+
+
+
